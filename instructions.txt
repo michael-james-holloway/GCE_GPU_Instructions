@@ -2,80 +2,85 @@
 #	Get a Google Compute Instance Working with a GPU	#
 #################################################################
 
-1. Create an Ubuntu 16.04 Instance with a GPU attached. You have to request a resource allocation for the GPU via some weird Google form. It seems as though that can’t be the way it is done, but this was the only way to get one allowed.
+1. Create an Ubuntu 16.04 Instance with a GPU attached. You have to request a resource allocation for the GPU via some weird Google form. 
+It seems as though that can’t be the way it is done, but this was the only way to get one allowed.
 
 2. SSH into the VM and run the following command to update/upgrade apt-get utility:
 
-$: sudo apt-get update && sudo apt-get -y upgrade
+	$: sudo apt-get update && sudo apt-get -y upgrade
 
 3. On the VM, run the following commands to get python package installer pip and then update it:
 
-$: sudo apt-get install python-pip
-$: pip install --upgrade pip
+	$: sudo apt-get install python-pip
+	$: pip install --upgrade pip
 
 (Ensure version 9.01 and up via “pip -V”)
 
 4. On the VM, run the following command to get virtualenv utility for python virtual environments:
 
-$: pip install --upgrade virtualenv
+	$: pip install --upgrade virtualenv
 
 5. Run the following bash script in order to download and install CUDA 8 (this script is from the GCE GPU tutorial):
 
-$:
-#!/bin/bash
-echo "Checking for CUDA and installing."
-# Check for CUDA and try to install.
-if ! dpkg-query -W cuda; then
-  	# The 16.04 installer works with 16.10.
-	curl -O http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
-	dpkg -i ./cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
-	apt-get update
-	apt-get install cuda -y
-fi
+	$:
+	#!/bin/bash
+	echo "Checking for CUDA and installing."
+	# Check for CUDA and try to install.
+	if ! dpkg-query -W cuda; then
+		# The 16.04 installer works with 16.10.
+		curl -O http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
+		dpkg -i ./cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
+		apt-get update
+		apt-get install cuda -y
+	fi
 
 (I actually saved this as a script, made it an executable, and then ran it via ./cuda_download.sh)
 
-6. Locally (on your non-VM machine), download the Linux Cudnn tgz for Cuda 8 and Cudnn 5.1. Example file name is: cudnn-8.0-linux-x64-v5.1.tgz. You have to register an account with NVIDIA at https://developer.nvidia.com/cudnn.
+6. Locally (on your non-VM machine), download the Linux Cudnn tgz for Cuda 8 and Cudnn 5.1. 
+Example file name is: cudnn-8.0-linux-x64-v5.1.tgz. 
+You have to register an account with NVIDIA at https://developer.nvidia.com/cudnn.
 
-7. Use the “gcloud compute scp" command on your local machine to push the .tgz file to your VM. See the gcloud documentation for how to do this.
+7. Use the “gcloud compute scp" command on your local machine to push the .tgz file to your VM. 
+See the gcloud documentation for how to do this.
 
 8. Extract the .tgz file on your VM. The .tgz should extract to a folder named “cuda" or something similar, we assume the folder name is “cuda” in the rest of the instructions.
 
 9. Run the following two commands:
 
-$: sudo cp cuda/lib64/* /usr/local/cuda/lib64/
-$: sudo cp cuda/include/cudnn.h /usr/local/cuda/i
+	$: sudo cp cuda/lib64/* /usr/local/cuda/lib64/
+	$: sudo cp cuda/include/cudnn.h /usr/local/cuda/i
 
 (I believe the above commands are sufficient, but I also ran the following because I was having a hard time getting this to work before I found the above ones, and this following might be required, I can’t tell.)
 
-$: CPPFLAGS='-I/home/<user>/cuda/include' LDFLAGS='-L/home/<user>/cuda/lib/' LIBS='-lcudnn'
+	$: CPPFLAGS='-I/home/<user>/cuda/include' LDFLAGS='-L/home/<user>/cuda/lib/' LIBS='-lcudnn'
 
 10. Run the following command to get the NVIDIA Cuda Profile Tools interface:
 
-$: sudo apt-get install libcupti-dev
+	$: sudo apt-get install libcupti-dev
 
-11. Create a virtual environment for your project with the following command (In the example we use “venv" as the name our virtual environment but it can be anything you want. In addition, you can have multiple virtual environments per VM, if for instance you will have different projects running.)
+11. Create a virtual environment for your project with the following command: 
+(In the example we use “venv" as the name our virtual environment but it can be anything you want. In addition, you can have multiple virtual environments per VM, if for instance you will have different projects running.)
 
-$: virtualenv venv
+	$: virtualenv venv
 
 12. Activate the virtual environment with the following command:
 
-$: source venv/bin/activate
+	$: source venv/bin/activate
 
 13. Download the GPU based tensorflow package with the following command:
 
-(venv) $: pip install --upgrade tensorflow-gpu
+	(venv) $: pip install --upgrade tensorflow-gpu
 
 (If the virtual environment is activated, then you should see the “(venv)” before your bash prompt.)
 
 14. Ensure that the GPU version of tensorflow is working by the following commands:
 
-(venv) $: python
->>> from tensorflow.python.client import device_lib
->>> def get_available_gpus():
-...     local_device_protos = device_lib.list_local_devices()
-...     return [x.name for x in local_device_protos if x.device_type == 'GPU']
-...
->>> get_available_gpus()
+	(venv) $: python
+	>>> from tensorflow.python.client import device_lib
+	>>> def get_available_gpus():
+	...     local_device_protos = device_lib.list_local_devices()
+	...     return [x.name for x in local_device_protos if x.device_type == 'GPU']
+	...
+	>>> get_available_gpus()
 
 (In the output of the above program you should see device 0 being listed as a Tesla K80 (the standard GCE GPU at the time of writing.)
